@@ -28,7 +28,8 @@ typedef enum error_codes
     LEFT_CANARY_LOSE = 18,
     RIGHT_CANARY_LOSE = 19,
     LEFT_STACK_CANARY_LOSE = 20,
-    RIGHT_STACK_CANARY_LOSE = 21
+    RIGHT_STACK_CANARY_LOSE = 21,
+    HASH_MEANING_CHANGED = 22
 } error_codes;
 
 #ifdef STACK_ON_DEBUG
@@ -76,6 +77,18 @@ typedef enum error_codes
     #define STACK_DTOR(stack, error) stack_dtor(stack, error)
 #endif
 
+#ifdef CANARY_DEBUG_ON
+    #define CDO(...) __VA_ARGS__
+#else
+    #define CDO(...)
+#endif
+
+#ifdef HASH_DEBUG_ON
+    #define HDO(...) __VA_ARGS__
+#else
+    #define HDO(...)
+#endif
+
 typedef enum conclusion
 {
     ABORT_PROCESS = 0,
@@ -84,12 +97,13 @@ typedef enum conclusion
 
 typedef struct stack_t
 {
-    const stack_elem_t lcanary  = LEFT_CANARY;
+    CDO(const stack_elem_t lcanary  = LEFT_CANARY;)
     ONDBG(const char *name; const char *file; const char *func; size_t line;)
     stack_elem_t *data;
     size_t size;
     size_t capacity;
-    const stack_elem_t rcanary = RIGHT_CANARY;
+    size_t hash;
+    CDO(const stack_elem_t rcanary = RIGHT_CANARY;)
 } stack_t;
 
 error_codes stack_ctor(stack_t *stack, size_t capacity ONDBG(,const char *name, const char *file, const char *func, size_t line));
@@ -101,3 +115,7 @@ error_codes check_errors(stack_t *stack);
 conclusion is_okay(const char *process, stack_t *stack, error_codes error);
 void poison_stack(size_t begin, size_t end, stack_t *stack);
 error_codes check_allocation(stack_elem_t *data, size_t desirable_size);
+size_t djb2(stack_elem_t element);
+size_t hash_eval(stack_t stack);
+void hash_set(stack_t *stack);
+error_codes hash_check(stack_t stack);

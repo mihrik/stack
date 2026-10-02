@@ -8,7 +8,7 @@ STACK_PUSH, STACK_POP, STACK_DTOR that find their standard implementations in C+
 ## Particular qualities
 
 Program execution depends on connected compilation flag "STACK_ON_DEBUG", parts of program that rely on this flag provided
-with macros "ONDBG" that includes necessary code.
+with macros "ONDBG" that includes necessary code. The canary defense activates with special define "CANARY_DEBUG_ON" and uses "CDO" equally to "ONDBG". The hash defense activates with special define "HASH_DEBUG_ON" and uses "HDO" equally to "ONDBG"
 
 Structure "stack_t" used as the core structure of the program, its inner part:
     const stack_elem_t lcanary  = LEFT_CANARY;
@@ -33,3 +33,4 @@ Structure "stack_t" used as the core structure of the program, its inner part:
 - Program checks if canary standing for the last data element == header meaning while executing any function or returns in main error code 19
 - Program checks if canary standing for the first stack element == header meaning while executing any function or returns in main error code 20
 - Program checks if canary standing for the last stack element == header meaning while executing any function or returns in main error code 21
+- Program checks if hash meaning is equal to expected while executing any function or returns in main error code 22

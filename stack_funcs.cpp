@@ -20,10 +20,14 @@ error_codes stack_ctor(stack_t *stack, size_t capacity ONDBG(,const char *name, 
     if (check_allocation(stack->data, (capacity + 2) * sizeof(stack_elem_t)))
         code = MEMORY_ALLOCATION_ERROR;
 
+    CDO(
     stack->data[0] = LEFT_CANARY;
     stack->data[stack->capacity + 1] = RIGHT_CANARY;
+    )
 
     poison_stack(1, stack->capacity + 1, stack);
+
+    HDO(hash_set(stack);)
 
     return code;
 }
@@ -34,6 +38,11 @@ error_codes stack_push(stack_t *stack, stack_elem_t elem)
     if ((code = check_errors(stack)) != SUCCESSFUL_RETURN)
         return code;
 
+    HDO(
+    if ((code = hash_check(*stack)) != SUCCESSFUL_RETURN)
+        return code;
+    )
+
     if (stack->size == stack->capacity)
     {
         stack->data = (stack_elem_t *) realloc(stack->data, (stack->capacity * 2  + 2) * sizeof(stack_elem_t));
@@ -41,14 +50,16 @@ error_codes stack_push(stack_t *stack, stack_elem_t elem)
         if (check_allocation(stack->data, (stack->capacity * 2 + 2) * sizeof(stack_elem_t)) != SUCCESSFUL_RETURN)
             return MEMORY_ALLOCATION_ERROR;
 
-        stack->data[stack->capacity + 1] = RIGHT_CANARY;
+        CDO(stack->data[stack->capacity + 1] = RIGHT_CANARY;)
         stack->capacity *= 2;
 
         poison_stack(stack->size, stack->capacity, stack);
     }
 
     stack->data[++stack->size] = elem;
+    stack_dump(stack, "to check", "stack_push");
 
+    HDO(hash_set(stack);)
     code = check_errors(stack);
     return code;
 }
@@ -65,10 +76,16 @@ error_codes stack_pop(stack_t *stack, stack_elem_t *rtrn_val)
     if (rtrn_val == NULL)
         return NULL_VALUE_RETURN;
 
+    HDO(
+    if ((code = hash_check(*stack)) != SUCCESSFUL_RETURN)
+        return code;
+    )
+
     *rtrn_val = stack->data[stack->size];
     if (stack->data[stack->size] == POISON)
         return POISON_ELEMENT_MENTION;
     stack->data[stack->size--] = POISON;
+    stack_dump(stack, "to check", "stack_pop");
 
     if (stack->size * 2 == stack->capacity && stack->size != 0 && stack-> size != 1)
     {
@@ -77,10 +94,10 @@ error_codes stack_pop(stack_t *stack, stack_elem_t *rtrn_val)
         if (check_allocation(stack->data, (stack->capacity / 2 + 2) * sizeof(stack_elem_t)) != SUCCESSFUL_RETURN)
             return MEMORY_ALLOCATION_ERROR;
 
-        stack->data[stack->capacity + 1] = RIGHT_CANARY;
+        CDO(stack->data[stack->capacity + 1] = RIGHT_CANARY;)
         stack->capacity /= 2;
     }
-
+    HDO(hash_set(stack);)
     code = check_errors(stack);
 
     return code;
@@ -104,22 +121,37 @@ void stack_dtor(stack_t *stack, error_codes error)
 void stack_dump(stack_t *stack, const char *reason, const char *process)
 {
     ONDBG(
+        printf("\n\n\n");
         PRINT_COLOR(EXTRA_RED, "reason: %s, while doing: %s\n", reason, process);
         printf("stack_t \"%s\"[%p] created by %s at %s:%lu\n", stack->name, stack, stack->func, stack->file, stack->line);
         printf("{\n");
         PRINT_COLOR(BLUE, "    capacity = %lu;\n", stack->capacity);
         PRINT_COLOR(BLUE, "    size = %lu;\n", stack->size);
         PRINT_COLOR(BLUE, "    data[%p]\n", stack->data);
-        for (size_t i = 1; i < stack->capacity + 1; i++)
+        for (size_t i = 0; i < stack->capacity + 2; i++)
         {
-            if (i < stack->size + 1)
+            CDO(
+            if (i == 0)
+            {
+                PRINT_COLOR(PURPLE, "        canary[%lu] = " deb_spec "\n", i - 1, stack->data[i]);
+            }
+            )
+            if (i < stack->size + 1 && i > 0)
             {
                 PRINT_COLOR(GREEN, "        *[%lu] = " deb_spec "\n", i - 1, stack->data[i]);
             }
-            else
+            else if (i >= stack->size + 1 && i != stack->capacity + 1)
+            {
                 PRINT_COLOR(ORANGE, "         [%lu] = " deb_spec "\n", i - 1, stack->data[i]);
+            }
+            CDO(
+            else if (i == stack->capacity + 1)
+            {
+                PRINT_COLOR(PURPLE, "        canary = " deb_spec "\n", stack->data[i]);
+            }
+            )
         }
-        printf("}\n");
+        printf("}\n\n\n");
     )
 }
 
@@ -128,20 +160,24 @@ error_codes check_errors(stack_t *stack)
     if (stack == NULL)
         return NULL_STACK_MEANING;
 
+    CDO(
     if (stack->lcanary != LEFT_CANARY)
         return LEFT_STACK_CANARY_LOSE;
 
     if (stack->rcanary != RIGHT_CANARY)
         return RIGHT_STACK_CANARY_LOSE;
+    )
 
     if (stack->data == NULL)
         return NULL_DATA_MEANING;
 
+    CDO(
     if (stack->data[0] != LEFT_CANARY)
         return LEFT_CANARY_LOSE;
 
     if (stack->data[stack->capacity + 1] != RIGHT_CANARY)
         return RIGHT_CANARY_LOSE;
+    )
 
     if (stack->size > stack->capacity)
         return SIZE_MORE_THAN_CAPACITY;
@@ -209,6 +245,10 @@ conclusion is_okay(const char *process, stack_t *stack, error_codes error)
                                           found_error = true;
                                           break;
 
+            case HASH_MEANING_CHANGED   : stack_dump(stack, "HASH_MEANING_CHANGED", process);
+                                          found_error = true;
+                                          break;
+
             case SUCCESSFUL_RETURN      : break;
 
             default                     : PRINT_COLOR(EXTRA_RED, "reason: UNKNOWN_ERROR, while doing: %s\n", process);
@@ -241,6 +281,47 @@ error_codes check_allocation(stack_elem_t *data, size_t desirable_size)
 
     if (malloc_size != desirable_size)
         return MEMORY_ALLOCATION_ERROR;
+
+    return SUCCESSFUL_RETURN;
+}
+
+size_t djb2(stack_elem_t element)
+{
+    char string[30] = {};
+    sprintf(string, deb_spec "", element);
+    size_t sum = 5381;
+
+    for (size_t i = 0; i < 30 && string[i]; i++)
+    {
+        sum = sum * 33 + (size_t)string[i];
+    }
+
+    return sum % 100;
+}
+
+size_t hash_eval(stack_t stack)
+{
+    size_t hash = 0;
+
+    for (size_t i = 1; i < stack.capacity + 1; i++)
+    {
+        hash += djb2(stack.data[i]);
+    }
+
+    return hash;
+}
+
+void hash_set(stack_t *stack)
+{
+    stack->hash = hash_eval(*stack);
+}
+
+error_codes hash_check(stack_t stack)
+{
+    size_t hash = hash_eval(stack);
+
+    if (hash != stack.hash)
+        return HASH_MEANING_CHANGED;
 
     return SUCCESSFUL_RETURN;
 }
