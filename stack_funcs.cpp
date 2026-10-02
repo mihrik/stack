@@ -15,12 +15,15 @@ error_codes stack_ctor(stack_t *stack, size_t capacity ONDBG(,const char *name, 
     )
     stack->capacity = capacity;
     stack->size = 0;
-    stack->data = (stack_elem_t *) malloc(capacity * sizeof(stack_elem_t));
+    stack->data = (stack_elem_t *) malloc((capacity + 2) * sizeof(stack_elem_t));
 
-    if (check_allocation(stack->data, capacity * sizeof(stack_elem_t)))
+    if (check_allocation(stack->data, (capacity + 2) * sizeof(stack_elem_t)))
         code = MEMORY_ALLOCATION_ERROR;
 
-    poison_stack(0, stack->capacity, stack);
+    stack->data[0] = LEFT_CANARY;
+    stack->data[stack->capacity + 1] = RIGHT_CANARY;
+
+    poison_stack(1, stack->capacity + 1, stack);
 
     return code;
 }
@@ -33,18 +36,18 @@ error_codes stack_push(stack_t *stack, stack_elem_t elem)
 
     if (stack->size == stack->capacity)
     {
-        stack->data = (stack_elem_t *) realloc(stack->data, stack->capacity * 2 * sizeof(stack_elem_t));
+        stack->data = (stack_elem_t *) realloc(stack->data, (stack->capacity * 2  + 2) * sizeof(stack_elem_t));
 
-        if (check_allocation(stack->data, stack->capacity * sizeof(stack_elem_t) * 2) != SUCCESSFUL_RETURN)
+        if (check_allocation(stack->data, (stack->capacity * 2 + 2) * sizeof(stack_elem_t)) != SUCCESSFUL_RETURN)
             return MEMORY_ALLOCATION_ERROR;
 
+        stack->data[stack->capacity + 1] = RIGHT_CANARY;
         stack->capacity *= 2;
 
         poison_stack(stack->size, stack->capacity, stack);
     }
 
-    stack->data[stack->size] = elem;
-    stack->size++;
+    stack->data[++stack->size] = elem;
 
     code = check_errors(stack);
     return code;
@@ -59,17 +62,22 @@ error_codes stack_pop(stack_t *stack, stack_elem_t *rtrn_val)
     if (stack->size == 0)
         return POP_FROM_EMPTY;
 
-    stack->size--;
+    if (rtrn_val == NULL)
+        return NULL_VALUE_RETURN;
+
     *rtrn_val = stack->data[stack->size];
-    stack->data[stack->size] = POISON;
+    if (stack->data[stack->size] == POISON)
+        return POISON_ELEMENT_MENTION;
+    stack->data[stack->size--] = POISON;
 
-    if (cmp_dbl((double)stack->size,(double)stack->capacity / 2) == 1 && stack->size != 0 && stack-> size != 1)
+    if (stack->size * 2 == stack->capacity && stack->size != 0 && stack-> size != 1)
     {
-        stack->data = (stack_elem_t *) realloc(stack->data, stack->capacity / 2 * sizeof(stack_elem_t));
+        stack->data = (stack_elem_t *) realloc(stack->data, (stack->capacity / 2 + 2) * sizeof(stack_elem_t));
 
-        if (check_allocation(stack->data, stack->capacity * sizeof(stack_elem_t) / 2) != SUCCESSFUL_RETURN)
+        if (check_allocation(stack->data, (stack->capacity / 2 + 2) * sizeof(stack_elem_t)) != SUCCESSFUL_RETURN)
             return MEMORY_ALLOCATION_ERROR;
 
+        stack->data[stack->capacity + 1] = RIGHT_CANARY;
         stack->capacity /= 2;
     }
 
@@ -102,14 +110,14 @@ void stack_dump(stack_t *stack, const char *reason, const char *process)
         PRINT_COLOR(BLUE, "    capacity = %lu;\n", stack->capacity);
         PRINT_COLOR(BLUE, "    size = %lu;\n", stack->size);
         PRINT_COLOR(BLUE, "    data[%p]\n", stack->data);
-        for (size_t i = 0; i < stack->capacity; i++)
+        for (size_t i = 1; i < stack->capacity + 1; i++)
         {
-            if (i < stack->size)
-                {
-                    PRINT_COLOR(GREEN, "        *[%lu] = %lf\n", i, stack->data[i]);
-                }
+            if (i < stack->size + 1)
+            {
+                PRINT_COLOR(GREEN, "        *[%lu] = " deb_spec "\n", i - 1, stack->data[i]);
+            }
             else
-                PRINT_COLOR(ORANGE, "         [%lu] = %lf\n", i, stack->data[i]);
+                PRINT_COLOR(ORANGE, "         [%lu] = " deb_spec "\n", i - 1, stack->data[i]);
         }
         printf("}\n");
     )
@@ -120,8 +128,20 @@ error_codes check_errors(stack_t *stack)
     if (stack == NULL)
         return NULL_STACK_MEANING;
 
+    if (stack->lcanary != LEFT_CANARY)
+        return LEFT_STACK_CANARY_LOSE;
+
+    if (stack->rcanary != RIGHT_CANARY)
+        return RIGHT_STACK_CANARY_LOSE;
+
     if (stack->data == NULL)
         return NULL_DATA_MEANING;
+
+    if (stack->data[0] != LEFT_CANARY)
+        return LEFT_CANARY_LOSE;
+
+    if (stack->data[stack->capacity + 1] != RIGHT_CANARY)
+        return RIGHT_CANARY_LOSE;
 
     if (stack->size > stack->capacity)
         return SIZE_MORE_THAN_CAPACITY;
@@ -165,6 +185,30 @@ conclusion is_okay(const char *process, stack_t *stack, error_codes error)
                                           found_error = true;
                                           break;
 
+            case NULL_VALUE_RETURN      : stack_dump(stack, "NULL_VALUE_RETURN", process);
+                                          found_error = true;
+                                          break;
+
+            case POISON_ELEMENT_MENTION : stack_dump(stack, "POISON_ELEMNET_MENTION", process);
+                                          found_error = true;
+                                          break;
+
+            case LEFT_CANARY_LOSE       : stack_dump(stack, "LEFT_CANARY_LOSE", process);
+                                          found_error = true;
+                                          break;
+
+            case RIGHT_CANARY_LOSE      : stack_dump(stack, "RIGHT_CANARY_LOSE", process);
+                                          found_error = true;
+                                          break;
+
+            case LEFT_STACK_CANARY_LOSE : stack_dump(stack, "LEFT_STACK_CANARY_LOSE", process);
+                                          found_error = true;
+                                          break;
+
+            case RIGHT_STACK_CANARY_LOSE: stack_dump(stack, "RIGHT_STACK_CANARY_LOSE", process);
+                                          found_error = true;
+                                          break;
+
             case SUCCESSFUL_RETURN      : break;
 
             default                     : PRINT_COLOR(EXTRA_RED, "reason: UNKNOWN_ERROR, while doing: %s\n", process);
@@ -192,13 +236,11 @@ error_codes check_allocation(stack_elem_t *data, size_t desirable_size)
 {
     size_t malloc_size = malloc_usable_size(data);
 
+    if (data == NULL)
+        return NULL_DATA_MEANING;
+
     if (malloc_size != desirable_size)
         return MEMORY_ALLOCATION_ERROR;
 
     return SUCCESSFUL_RETURN;
-}
-
-int cmp_dbl(double val1, double val2)
-{
-    return fabs(val1 - val2) < EPS;
 }

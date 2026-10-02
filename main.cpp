@@ -5,13 +5,13 @@ int main(void)
 {
     stack_t stack = {};
 
-    STACK_CTOR(&stack, 10, "stack", __FILE__, __func__, __LINE__);
+    STACK_CTOR(&stack, 7, "stack", __FILE__, __func__, __LINE__);
 
-    STACK_PUSH(&stack, 69);
-    STACK_PUSH(&stack, 52);
-    STACK_PUSH(&stack, 42);
-    STACK_PUSH(&stack, 67);
-    double x = 0;
+    STACK_PUSH(&stack, 76);
+    STACK_PUSH(&stack, 25);
+    STACK_PUSH(&stack, 96);
+    STACK_PUSH(&stack, 24);
+    stack_elem_t x = 0;
     STACK_POP(&stack, &x);
     STACK_POP(&stack, &x);
     STACK_PUSH(&stack, 17);
@@ -20,7 +20,7 @@ int main(void)
     STACK_POP(&stack, &x);
     STACK_POP(&stack, &x);
     STACK_POP(&stack, &x);
-    STACK_PUSH(&stack, 122);
+    STACK_PUSH(&stack, 222);
 
     STACK_DTOR(&stack, SUCCESSFUL_RETURN);
 
