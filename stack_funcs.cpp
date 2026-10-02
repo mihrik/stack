@@ -17,8 +17,10 @@ error_codes stack_ctor(stack_t *stack, size_t capacity ONDBG(,const char *name, 
     stack->size = 0;
     stack->data = (stack_elem_t *) malloc((capacity + 2) * sizeof(stack_elem_t));
 
+    ONDBG(
     if (check_allocation(stack->data, (capacity + 2) * sizeof(stack_elem_t)))
         code = MEMORY_ALLOCATION_ERROR;
+    )
 
     CDO(
     stack->data[0] = LEFT_CANARY;
@@ -35,8 +37,11 @@ error_codes stack_ctor(stack_t *stack, size_t capacity ONDBG(,const char *name, 
 error_codes stack_push(stack_t *stack, stack_elem_t elem)
 {
     error_codes code = SUCCESSFUL_RETURN;
+
+    ONDBG(
     if ((code = check_errors(stack)) != SUCCESSFUL_RETURN)
         return code;
+    )
 
     HDO(
     if ((code = hash_check(*stack)) != SUCCESSFUL_RETURN)
@@ -47,8 +52,11 @@ error_codes stack_push(stack_t *stack, stack_elem_t elem)
     {
         stack->data = (stack_elem_t *) realloc(stack->data, (stack->capacity * 2  + 2) * sizeof(stack_elem_t));
 
+
+        ONDBG(
         if (check_allocation(stack->data, (stack->capacity * 2 + 2) * sizeof(stack_elem_t)) != SUCCESSFUL_RETURN)
             return MEMORY_ALLOCATION_ERROR;
+        )
 
         CDO(stack->data[stack->capacity + 1] = RIGHT_CANARY;)
         stack->capacity *= 2;
@@ -60,13 +68,17 @@ error_codes stack_push(stack_t *stack, stack_elem_t elem)
     stack_dump(stack, "to check", "stack_push");
 
     HDO(hash_set(stack);)
-    code = check_errors(stack);
+
+    ONDBG(code = check_errors(stack);)
+
     return code;
 }
 
 error_codes stack_pop(stack_t *stack, stack_elem_t *rtrn_val)
 {
     error_codes code = SUCCESSFUL_RETURN;
+
+    ONDBG(
     if ((code = check_errors(stack)) != SUCCESSFUL_RETURN)
         return code;
 
@@ -75,6 +87,7 @@ error_codes stack_pop(stack_t *stack, stack_elem_t *rtrn_val)
 
     if (rtrn_val == NULL)
         return NULL_VALUE_RETURN;
+    )
 
     HDO(
     if ((code = hash_check(*stack)) != SUCCESSFUL_RETURN)
@@ -82,8 +95,12 @@ error_codes stack_pop(stack_t *stack, stack_elem_t *rtrn_val)
     )
 
     *rtrn_val = stack->data[stack->size];
+
+    ONDBG(
     if (stack->data[stack->size] == POISON)
         return POISON_ELEMENT_MENTION;
+    )
+
     stack->data[stack->size--] = POISON;
     stack_dump(stack, "to check", "stack_pop");
 
@@ -91,14 +108,18 @@ error_codes stack_pop(stack_t *stack, stack_elem_t *rtrn_val)
     {
         stack->data = (stack_elem_t *) realloc(stack->data, (stack->capacity / 2 + 2) * sizeof(stack_elem_t));
 
+        ONDBG(
         if (check_allocation(stack->data, (stack->capacity / 2 + 2) * sizeof(stack_elem_t)) != SUCCESSFUL_RETURN)
             return MEMORY_ALLOCATION_ERROR;
+        )
 
         CDO(stack->data[stack->capacity + 1] = RIGHT_CANARY;)
         stack->capacity /= 2;
     }
+
     HDO(hash_set(stack);)
-    code = check_errors(stack);
+
+    ONDBG(code = check_errors(stack);)
 
     return code;
 }

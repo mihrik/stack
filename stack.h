@@ -5,13 +5,12 @@
 #include "colors.h"
 #include <stdbool.h>
 
+
 typedef int stack_elem_t;
 #define deb_spec "%d"
 const stack_elem_t POISON = 666;
 const stack_elem_t LEFT_CANARY = 3802;
 const stack_elem_t RIGHT_CANARY = 3802;
-
-const double EPS = 1e-5;
 
 
 typedef enum error_codes
