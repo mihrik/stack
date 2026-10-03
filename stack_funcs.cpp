@@ -46,11 +46,6 @@ error_codes stack_push(stack_t *stack, stack_elem_t elem)
         return code;
     )
 
-    HDO(
-    if ((code = hash_check(*stack)) != SUCCESSFUL_RETURN)
-        return code;
-    )
-
     if (stack->size == stack->capacity)
     {
         stack->data = (stack_elem_t *) realloc(stack->data, (stack->capacity * 2  + 2) * sizeof(stack_elem_t));
@@ -89,11 +84,6 @@ error_codes stack_pop(stack_t *stack, stack_elem_t *rtrn_val)
 
     if (rtrn_val == NULL)
         return NULL_VALUE_RETURN;
-    )
-
-    HDO(
-    if ((code = hash_check(*stack)) != SUCCESSFUL_RETURN)
-        return code;
     )
 
     *rtrn_val = stack->data[stack->size];
@@ -205,6 +195,11 @@ error_codes check_errors(stack_t *stack)
 
     if (stack->capacity > MAX_CAPACITY)
         return ENORMOUS_CAPACITY;
+
+    HDO(
+    if (hash_check(*stack) != SUCCESSFUL_RETURN)
+        return HASH_MEANING_CHANGED;
+    )
 
     CDO(
     if (stack->data[stack->capacity + 1] != RIGHT_CANARY)
@@ -336,6 +331,9 @@ size_t hash_eval(stack_t stack)
     for (size_t i = 1; i < stack.capacity + 1; i++)
     {
         hash += djb2(stack.data[i]);
+
+        if (hash > stack.hash)
+            return hash;
     }
 
     return hash;
@@ -343,7 +341,14 @@ size_t hash_eval(stack_t stack)
 
 void hash_set(stack_t *stack)
 {
-    stack->hash = hash_eval(*stack);
+    size_t hash = 0;
+
+    for (size_t i = 1; i < stack->capacity + 1; i++)
+    {
+        hash += djb2(stack->data[i]);
+    }
+
+    stack->hash = hash;
 }
 
 error_codes hash_check(stack_t stack)
