@@ -68,7 +68,6 @@ error_codes stack_push(stack_t *stack, stack_elem_t elem)
     }
 
     stack->data[++stack->size] = elem;
-    stack_dump(stack, "to check", "stack_push");
 
     HDO(hash_set(stack);)
 
@@ -105,7 +104,6 @@ error_codes stack_pop(stack_t *stack, stack_elem_t *rtrn_val)
     )
 
     stack->data[stack->size--] = POISON;
-    stack_dump(stack, "to check", "stack_pop");
 
     if (stack->size * 2 == stack->capacity && stack->size != 0 && stack-> size != 1)
     {

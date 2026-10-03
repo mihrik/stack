@@ -102,7 +102,7 @@ typedef enum conclusion
 
 typedef struct stack_t
 {
-    CDO(const stack_elem_t lcanary  = LEFT_CANARY;)
+    CDO( stack_elem_t lcanary  = LEFT_CANARY;)
     ONDBG(const char *name; const char *file; const char *func; size_t line;)
     stack_elem_t *data;
     size_t size;
