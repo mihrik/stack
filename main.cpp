@@ -18,8 +18,6 @@ int main(void)
     STACK_POP(&stack, &x);
     STACK_POP(&stack, &x);
     STACK_POP(&stack, &x);
-    STACK_POP(&stack, &x);
-    STACK_POP(&stack, &x);
     STACK_PUSH(&stack, 222);
 
     STACK_DTOR(&stack, SUCCESSFUL_RETURN);

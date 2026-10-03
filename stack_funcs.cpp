@@ -154,7 +154,7 @@ void stack_dump(stack_t *stack, const char *reason, const char *process)
             CDO(
             if (i == 0)
             {
-                PRINT_COLOR(PURPLE, "        canary = " deb_spec "\n", stack->data[i]);
+                PRINT_COLOR(PURPLE, "        canary = 0x%lX"  "\n", (size_t)stack->data[i]);
             }
             )
             if (i < stack->size + 1 && i > 0)
@@ -168,7 +168,7 @@ void stack_dump(stack_t *stack, const char *reason, const char *process)
             CDO(
             else if (i == stack->capacity + 1)
             {
-                PRINT_COLOR(PURPLE, "        canary = " deb_spec "\n", stack->data[i]);
+                PRINT_COLOR(PURPLE, "        canary = 0x%lX"  "\n", (size_t)stack->data[i]);
             }
             )
         }

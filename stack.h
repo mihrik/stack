@@ -9,8 +9,8 @@
 typedef int stack_elem_t;
 #define deb_spec "%d"
 const stack_elem_t POISON = 666;
-const stack_elem_t LEFT_CANARY = 3802;
-const stack_elem_t RIGHT_CANARY = 3802;
+const stack_elem_t LEFT_CANARY = 0xEDA | 0x40A0B000;
+const stack_elem_t RIGHT_CANARY = 0xEDA | 0x40A0B000;
 
 
 typedef enum error_codes
@@ -50,9 +50,13 @@ typedef enum error_codes
                 }                                                                                          \
             }
 
+    // TODO TO_STRING
+    #define STRINGISATION(line) #line
+    #define TO_STRING(line) STRINGISATION(line)
+
     #define STACK_PUSH(stack, elem) {                                                                     \
                 error_codes error = stack_push((stack), (elem));                                          \
-                if (is_okay("STACK_PUSH", (stack), (error)) == ABORT_PROCESS)                             \
+                if (is_okay("STACK_PUSH "  __FILE__ ":" TO_STRING(__LINE__), (stack), (error)) == ABORT_PROCESS)\
                 {                                                                                         \
                     stack_dtor((stack), error);                                                           \
                     return error;                                                                         \
@@ -61,7 +65,7 @@ typedef enum error_codes
 
     #define STACK_POP(stack, rtrn_val) {                                                                  \
                 error_codes error = stack_pop((stack), (rtrn_val));                                       \
-                if (is_okay("STACK_POP", (stack), error) == ABORT_PROCESS)                                \
+                if (is_okay("STACK_POP " __FILE__ ":" TO_STRING(__LINE__), (stack), error) == ABORT_PROCESS)\
                 {                                                                                         \
                     stack_dtor((stack), error);                                                           \
                     return error;                                                                         \
