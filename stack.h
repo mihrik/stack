@@ -11,6 +11,7 @@ typedef int stack_elem_t;
 const stack_elem_t POISON = 666;
 const stack_elem_t LEFT_CANARY = 0xEDA | 0x40A0B000;
 const stack_elem_t RIGHT_CANARY = 0xEDA | 0x40A0B000;
+const size_t MAX_CAPACITY = 10000;
 
 
 typedef enum error_codes
@@ -28,7 +29,8 @@ typedef enum error_codes
     RIGHT_CANARY_LOSE = 19,
     LEFT_STACK_CANARY_LOSE = 20,
     RIGHT_STACK_CANARY_LOSE = 21,
-    HASH_MEANING_CHANGED = 22
+    HASH_MEANING_CHANGED = 22,
+    ENORMOUS_CAPACITY = 23
 } error_codes;
 
 #ifdef STACK_ON_DEBUG

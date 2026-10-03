@@ -5,7 +5,7 @@ int main(void)
 {
     stack_t stack = {};
 
-    STACK_CTOR(&stack, 7, "stack", __FILE__, __func__, __LINE__);
+    STACK_CTOR(&stack, -1, "stack", __FILE__, __func__, __LINE__);
 
     STACK_PUSH(&stack, 76);
     STACK_PUSH(&stack, 25);

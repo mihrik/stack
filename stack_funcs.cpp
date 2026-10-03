@@ -6,6 +6,9 @@ error_codes stack_ctor(stack_t *stack, size_t capacity ONDBG(,const char *name, 
     if (stack == NULL)
         return NULL_STACK_MEANING;
 
+    if (capacity > MAX_CAPACITY)
+        return ENORMOUS_CAPACITY;
+
     ONDBG
     (
         stack->name = name;
@@ -180,7 +183,6 @@ error_codes check_errors(stack_t *stack)
 {
     if (stack == NULL)
         return NULL_STACK_MEANING;
-
     CDO(
     if (stack->lcanary != LEFT_CANARY)
         return LEFT_STACK_CANARY_LOSE;
@@ -195,9 +197,6 @@ error_codes check_errors(stack_t *stack)
     CDO(
     if (stack->data[0] != LEFT_CANARY)
         return LEFT_CANARY_LOSE;
-
-    if (stack->data[stack->capacity + 1] != RIGHT_CANARY)
-        return RIGHT_CANARY_LOSE;
     )
 
     if (stack->size > stack->capacity)
@@ -206,6 +205,13 @@ error_codes check_errors(stack_t *stack)
     if (stack->capacity == 0)
         return ZERO_CAPACITY_ERROR;
 
+    if (stack->capacity > MAX_CAPACITY)
+        return ENORMOUS_CAPACITY;
+
+    CDO(
+    if (stack->data[stack->capacity + 1] != RIGHT_CANARY)
+        return RIGHT_CANARY_LOSE;
+    )
     return SUCCESSFUL_RETURN;
 }
 
@@ -267,6 +273,11 @@ conclusion is_okay(const char *process, stack_t *stack, error_codes error)
                                           break;
 
             case HASH_MEANING_CHANGED   : stack_dump(stack, "HASH_MEANING_CHANGED", process);
+                                          found_error = true;
+                                          break;
+
+            case ENORMOUS_CAPACITY      : PRINT_COLOR(EXTRA_RED, "reason: ENORMOUS_CAPACITY, while doing: %s\n", process);
+                                          printf("stack_t \"%s\"[%p] created by %s at %s:%lu\n", stack->name, stack, stack->func, stack->file, stack->line);
                                           found_error = true;
                                           break;
 
